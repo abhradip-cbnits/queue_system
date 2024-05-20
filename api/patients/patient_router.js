@@ -12,7 +12,30 @@ router.post('/GetUserDetailsByNRICNumber', async (req, res) => {
         if (!body || !body.nric_number) {
             res.status(400).json({ error: 'Invalid request body or missing nric_number' });
         }
-        const query = 'SELECT * FROM public.patient p WHERE p.nric_number = $1';
+        const query = `SELECT 
+                        p.id,
+                        p.nric_number,
+                        p."name",
+                        p.address,
+                        p.phone_no,
+                        p.email,
+                        p.age,
+                        p.dob,
+                        p.created_at,
+                        p.updated_at,
+                        (SELECT 
+                            MAX(a.id) 
+                        FROM 
+                            public.appointment a 
+                        WHERE 
+                            a.patient_id = p.id
+                            AND (a.consultation_priority != '0' OR a.appointment_medicine_status != '0' OR a.appointment_labtest_status != '0' OR a.appointment_payment_status != '0')
+                        ) AS serial_number
+                    FROM 
+                        public.patient p
+                    WHERE 
+                        p.nric_number = $1;
+    `;
         const { rows } = await pool.query(query, [body.nric_number]);
         if (rows.length === 0) {
             // If no data is found for the given ID, return 404 Not Found
@@ -252,7 +275,7 @@ router.post('/ActionUpdate', async (req, res) => {
 });
 
 router.post('/PsuedoRegister', async (req, res) => {
-    try{
+    try {
         const body = req.body
         // Query to fetch data from PostgreSQL based on the input ID
         if (!body || !body.nric_number) {
@@ -261,21 +284,54 @@ router.post('/PsuedoRegister', async (req, res) => {
         const selectQuery = 'SELECT * FROM public.patient p WHERE p.nric_number = $1';
         const { rows } = await pool.query(selectQuery, [body.nric_number]);
         if (rows.length === 0) {
-            const name = util.nameList[Math.floor(Math.random() * util.nameList.length)] + " "+ util.nameList[Math.floor(Math.random() * util.nameList.length)]
-            const address = Math.floor(Math.random()*1000) + " "+ util.nameList[Math.floor(Math.random() * util.nameList.length)] + " St, " + util.locationList[Math.floor(Math.random() * util.locationList.length)]
-            const phoneNumber = Math.floor(Math.random()*1000) + "-" + Math.floor(Math.random()*1000) + "-" + Math.floor(Math.random()*10000)
+            const name = util.nameList[Math.floor(Math.random() * util.nameList.length)] + " " + util.nameList[Math.floor(Math.random() * util.nameList.length)]
+            const address = Math.floor(Math.random() * 1000) + " " + util.nameList[Math.floor(Math.random() * util.nameList.length)] + " St, " + util.locationList[Math.floor(Math.random() * util.locationList.length)]
+            const phoneNumber = Math.floor(Math.random() * 1000) + "-" + Math.floor(Math.random() * 1000) + "-" + Math.floor(Math.random() * 10000)
             const email = name.replaceAll(' ', '.').toLowerCase() + "@example.com"
-            const age = Math.floor(Math.random()*100)
+            const age = Math.floor(Math.random() * 100)
             const d = new Date();
             const dob = Math.abs(age - d.getFullYear()) + "-" + Math.floor(Math.random() * 12) + "-" + Math.floor(Math.random() * 28)
-            let query =  `INSERT INTO public.patient (nric_number, "name", address, phone_no, email, age, dob) VALUES ('${body.nric_number}','${name}','${address}','${phoneNumber}','${email}','${age}','${dob}')`
+            let query = `INSERT INTO public.patient (nric_number, "name", address, phone_no, email, age, dob) VALUES ('${body.nric_number}','${name}','${address}','${phoneNumber}','${email}','${age}','${dob}')`
             console.log(query)
             await pool.query(query)
-            res.status(200).json({ isExist:"false",Message:"New patient created name: "+name+",address: "+address+" ,phone number: "+phoneNumber+" email: "+ email+" age: " +age + " dob :"+dob});
+            res.status(200).json({ isExist: "false", Message: "New patient created name: " + name + ",address: " + address + " ,phone number: " + phoneNumber + " email: " + email + " age: " + age + " dob :" + dob });
         } else {
-            res.status(200).json({ isExist:"true",Message:"No new patient created"});
+            res.status(200).json({ isExist: "true", Message: "No new patient created" });
         }
-    }catch (err) {
+    } catch (err) {
+        console.error('Error fetching data', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.post('/MarkAllCompleted', async (req, res) => {
+    try {
+        const body = req.body
+        if (!body.serial_number) {
+            res.status(400).json({ error: 'Invalid request body or missing serial_number' });
+        }
+        let query = `update public.consultation_queue
+                        set status='inactive'::character varying, updated_at=now()
+                        where appointment_id = ${body.serial_number};`
+        await pool.query(query)
+        query = `update public.medicine_queue
+                        set status='inactive'::character varying, updated_at=now()
+                        where appointment_id = ${body.serial_number};`
+        await pool.query(query)
+        query = `update public.labtest_queue
+                        set status='inactive'::character varying, updated_at=now()
+                        where appointment_id = ${body.serial_number};`
+        await pool.query(query)
+        query = `update public.payment_queue
+                        set status='inactive'::character varying, updated_at=now()
+                        where appointment_id = ${body.serial_number};`
+        await pool.query(query)
+        query = `UPDATE public.appointment
+                    SET appointment_consultation_status='completed', consultation_priority=0, appointment_medicine_status='completed', medicine_priority=0, appointment_labtest_status='completed', labtest_priority=0, appointment_payment_status='completed', payment_priority=0, updated_at=now()
+                    WHERE id= ${body.serial_number};`
+        await pool.query(query)
+        res.status(200).json({ message: "marked all completed for this patient" })
+    } catch (err) {
         console.error('Error fetching data', err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
