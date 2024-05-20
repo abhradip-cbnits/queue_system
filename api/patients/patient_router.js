@@ -29,7 +29,7 @@ router.post('/GetUserDetailsByNRICNumber', async (req, res) => {
                             public.appointment a 
                         WHERE 
                             a.patient_id = p.id
-                            AND (a.consultation_priority != '0' OR a.appointment_medicine_status != '0' OR a.appointment_labtest_status != '0' OR a.appointment_payment_status != '0')
+                            AND (a.consultation_priority != '0' OR a.medicine_priority != '0' OR a.labtest_priority != '0' OR a.payment_priority != '0')
                         ) AS serial_number
                     FROM 
                         public.patient p
