@@ -284,15 +284,14 @@ router.post('/PsuedoRegister', async (req, res) => {
         const selectQuery = 'SELECT * FROM public.patient p WHERE p.nric_number = $1';
         const { rows } = await pool.query(selectQuery, [body.nric_number]);
         if (rows.length === 0) {
-            const name = util.nameList[Math.floor(Math.random() * util.nameList.length)] + " " + util.nameList[Math.floor(Math.random() * util.nameList.length)]
-            const address = Math.floor(Math.random() * 1000) + " " + util.nameList[Math.floor(Math.random() * util.nameList.length)] + " St, " + util.locationList[Math.floor(Math.random() * util.locationList.length)]
+            const name = util.nameList[Math.floor(Math.random() * util.nameList.length)]
+            const address = Math.floor(Math.random() * 1000) + " " + util.addressList[Math.floor(Math.random() * util.addressList.length)] + " St, " + util.locationList[Math.floor(Math.random() * util.locationList.length)]
             const phoneNumber = Math.floor(Math.random() * 1000) + "-" + Math.floor(Math.random() * 1000) + "-" + Math.floor(Math.random() * 10000)
             const email = name.replaceAll(' ', '.').toLowerCase() + "@example.com"
             const age = Math.floor(Math.random() * 100)
             const d = new Date();
-            const dob = Math.abs(age - d.getFullYear()) + "-" + Math.floor(Math.random() * 12) + "-" + Math.floor(Math.random() * 28)
+            const dob = Math.abs(age - d.getFullYear()) + "-" +(Math.floor(Math.random() * 11) + 1) + "-" + (Math.floor(Math.random() * 27) + 1)
             let query = `INSERT INTO public.patient (nric_number, "name", address, phone_no, email, age, dob) VALUES ('${body.nric_number}','${name}','${address}','${phoneNumber}','${email}','${age}','${dob}')`
-            console.log(query)
             await pool.query(query)
             res.status(200).json({ isExist: "false", Message: "New patient created name: " + name + ",address: " + address + " ,phone number: " + phoneNumber + " email: " + email + " age: " + age + " dob :" + dob });
         } else {
