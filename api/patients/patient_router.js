@@ -129,7 +129,7 @@ router.post('/ListQueueOnRole', async (req, res) => {
             res.status(400).json({ error: 'Invalid request body or missing role' });
         }
         const query = `select a.nric_number, a.id as serial_number, q.id as ${req.body.role}_queue_number,q.status, a.booking_date ,p."name" ,p.address ,p.email ,p.age ,p.phone_no, a.appointment_consultation_status ,a.consultation_priority ,a.appointment_medicine_status ,a.medicine_priority ,a.appointment_labtest_status ,a.labtest_priority ,a.appointment_payment_status ,a.payment_priority  from ${req.body.role}_queue q inner join appointment a on q.appointment_id = a.id 
-    inner join patient p on p.id = a.patient_id`
+    inner join patient p on p.id = a.patient_id order by q.id`
         const { rows } = await pool.query(query)
         res.json(rows)
     } catch (err) {
